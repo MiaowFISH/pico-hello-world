@@ -1,0 +1,101 @@
+{
+    "_comment": "这是一个示例配置文件，展示所有可用选项",
+    
+    "wifi": {
+        "ssid": "your_wifi_ssid",
+        "password": "your_wifi_password",
+        "_comment": "WiFi设置 - 注意Pico2W只支持2.4GHz网络"
+    },
+    
+    "server": {
+        "port": 80,
+        "_comment": "HTTP服务器端口，默认80"
+    },
+    
+    "i2c": {
+        "sda_pin": "GP0",
+        "scl_pin": "GP1",
+        "_comment": "I2C引脚配置，GP0=SDA, GP1=SCL"
+    },
+    
+    "pca9685": {
+        "frequency": 50,
+        "_comment": "PWM频率(Hz)，舵机标准为50Hz"
+    },
+    
+    "servos": [
+        {
+            "channel": 0,
+            "name": "Base Servo",
+            "description": "底座旋转舵机",
+            "min_angle": 0,
+            "max_angle": 180,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90,
+            "_comment": "标准SG90舵机，全范围0-180度"
+        },
+        {
+            "channel": 1,
+            "name": "Arm Servo 1",
+            "description": "机械臂关节1",
+            "min_angle": 30,
+            "max_angle": 150,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90,
+            "_comment": "有限位保护，防止机械臂撞击"
+        },
+        {
+            "channel": 2,
+            "name": "Arm Servo 2",
+            "description": "机械臂关节2",
+            "min_angle": 45,
+            "max_angle": 135,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90
+        },
+        {
+            "channel": 3,
+            "name": "Gripper",
+            "description": "夹爪舵机",
+            "min_angle": 0,
+            "max_angle": 90,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 45,
+            "_comment": "夹爪只需要0-90度范围"
+        }
+    ],
+    
+    "_notes": {
+        "servo_config_format": "每个舵机的配置项说明",
+        "channel": "PCA9685通道号，范围0-15",
+        "name": "舵机名称（可选，用于识别）",
+        "description": "舵机描述（可选）",
+        "min_angle": "最小角度限位（度）",
+        "max_angle": "最大角度限位（度）",
+        "min_pulse": "最小脉冲宽度（微秒），通常500-1000",
+        "max_pulse": "最大脉冲宽度（微秒），通常2000-2500",
+        "initial_angle": "初始角度（可选，启动时自动设置）",
+        
+        "common_servo_specs": {
+            "SG90": {
+                "pulse_range": "500-2400us",
+                "angle_range": "0-180度",
+                "torque": "1.8kg·cm"
+            },
+            "MG996R": {
+                "pulse_range": "1000-2000us",
+                "angle_range": "0-180度",
+                "torque": "9.4kg·cm"
+            },
+            "DS3218": {
+                "pulse_range": "500-2500us",
+                "angle_range": "0-270度",
+                "torque": "20kg·cm"
+            }
+        }
+    }
+}

@@ -1,0 +1,12 @@
+[project]
+name = "pico-hello-world"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "circuitpython-stubs>=10.0.3",
+    "watchdog>=3.0.0",
+    "circup>=1.2.0",
+    "serial>=0.0.97",
+]

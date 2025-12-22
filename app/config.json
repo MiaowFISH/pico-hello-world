@@ -1,0 +1,45 @@
+{
+    "wifi": {
+        "ssid": "your_wifi_ssid",
+        "password": "your_wifi_password"
+    },
+    "server": {
+        "port": 80
+    },
+    "i2c": {
+        "sda_pin": "GP0",
+        "scl_pin": "GP1"
+    },
+    "pca9685": {
+        "frequency": 50
+    },
+    "servos": [
+        {
+            "channel": 0,
+            "name": "Servo 1",
+            "min_angle": 0,
+            "max_angle": 180,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90
+        },
+        {
+            "channel": 1,
+            "name": "Servo 2",
+            "min_angle": 45,
+            "max_angle": 135,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90
+        },
+        {
+            "channel": 2,
+            "name": "Servo 3",
+            "min_angle": 0,
+            "max_angle": 90,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 45
+        }
+    ]
+}
