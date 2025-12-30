@@ -16,7 +16,7 @@
     "servos": [
         {
             "channel": 0,
-            "name": "Servo 1",
+            "name": "机械臂关节1",
             "min_angle": 70,
             "max_angle": 150,
             "min_pulse": 500,
@@ -25,21 +25,37 @@
         },
         {
             "channel": 1,
-            "name": "Servo 2",
-            "min_angle": 45,
-            "max_angle": 135,
-            "min_pulse": 500,
-            "max_pulse": 2500,
-            "initial_angle": 90
-        },
-        {
-            "channel": 2,
-            "name": "Servo 3",
+            "name": "机械臂关节2",
             "min_angle": 50,
             "max_angle": 90,
             "min_pulse": 500,
             "max_pulse": 2500,
             "initial_angle": 60
+        },
+        {
+            "channel": 2,
+            "name": "机械臂夹爪",
+            "min_angle": 45,
+            "max_angle": 135,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90
         }
-    ]
+    ],
+    "motors": {
+        "tracks": {
+            "pwma_pin": "GP6",
+            "ain1_pin": "GP7",
+            "ain2_pin": "GP8",
+            "pwmb_pin": "GP9",
+            "bin1_pin": "GP10",
+            "bin2_pin": "GP11",
+            "stby_pin": "GP12"
+        },
+        "base_rotation": {
+            "in1_pin": "GP14",
+            "in2_pin": "GP15",
+            "sleep_pin": "GP13"
+        }
+    }
 }

@@ -11,15 +11,15 @@ import time
 class WebServer:
     """Web服务器类，提供HTTP API接口"""
     
-    def __init__(self, servo_controller, port=80):
+    def __init__(self, vehicle_controller, port=80):
         """
         初始化Web服务器
         
         Args:
-            servo_controller: ServoController实例
+            vehicle_controller: VehicleController实例
             port: 服务器端口号
         """
-        self.servo_controller = servo_controller
+        self.vehicle = vehicle_controller
         self.port = port
         self.pool = None
         self.server_socket = None
@@ -273,7 +273,9 @@ class WebServer:
         
         # 路由处理
         if path == '/' or path == '/index.html':
-            return self._html_response()
+            return self._static_response()
+        elif path == '/api/status':
+            return self._handle_status()
         elif path == '/api/info':
             return self._handle_info()
         elif path.startswith('/api/servo/'):
@@ -282,13 +284,24 @@ class WebServer:
             return self._handle_center()
         elif path == '/api/disable':
             return self._handle_disable(request)
+        elif path.startswith('/api/tracks'):
+            return self._handle_tracks(method, request)
+        elif path.startswith('/api/base'):
+            return self._handle_base(method, request)
+        elif path == '/api/emergency_stop':
+            return self._handle_emergency_stop()
         else:
             return self._error_response(404, "Not Found")
     
     def _handle_info(self):
         """获取所有舵机信息"""
-        info = self.servo_controller.get_servo_info()
+        info = self.vehicle.get_servo_info()
         return self._json_response({"success": True, "servos": info})
+    
+    def _handle_status(self):
+        """获取所有状态信息"""
+        status = self.vehicle.get_all_status()
+        return self._json_response({"success": True, "status": status})
     
     def _handle_servo(self, method, path, request):
         """处理舵机控制请求"""
@@ -304,8 +317,8 @@ class WebServer:
         
         if method == 'GET':
             # 获取舵机状态
-            angle = self.servo_controller.get_angle(channel)
-            limits = self.servo_controller.get_limits(channel)
+            angle = self.vehicle.get_servo_angle(channel)
+            limits = self.vehicle.servo_ctrl.get_limits(channel)
             if limits is None:
                 return self._json_response({
                     "success": False, 
@@ -334,7 +347,7 @@ class WebServer:
                 # 设置角度
                 angle = data['angle']
                 smooth = data.get('smooth', False)
-                success = self.servo_controller.set_angle(channel, angle, smooth)
+                success = self.vehicle.set_servo_angle(channel, angle, smooth)
                 return self._json_response({
                     "success": success,
                     "channel": channel,
@@ -348,7 +361,7 @@ class WebServer:
                 max_angle = limits.get('max')
                 if min_angle is None or max_angle is None:
                     return self._error_response(400, "Invalid limits")
-                success = self.servo_controller.set_limits(
+                success = self.vehicle.servo_ctrl.set_limits(
                     channel, min_angle, max_angle
                 )
                 return self._json_response({
@@ -365,7 +378,7 @@ class WebServer:
     
     def _handle_center(self):
         """将所有舵机移到中心位置"""
-        results = self.servo_controller.center_all()
+        results = self.vehicle.center_all_servos()
         return self._json_response({"success": True, "results": results})
     
     def _handle_disable(self, request):
@@ -375,12 +388,86 @@ class WebServer:
             try:
                 data = json.loads(body)
                 channel = data.get('channel')
-                self.servo_controller.disable(channel)
+                self.vehicle.disable_servos(channel)
             except:
                 pass
         else:
-            self.servo_controller.disable()
+            self.vehicle.disable_servos()
         return self._json_response({"success": True})
+    
+    def _handle_tracks(self, method, request):
+        """处理履带控制请求"""
+        if method != 'POST':
+            return self._error_response(405, "Method Not Allowed")
+        
+        body = self._get_request_body(request)
+        if not body:
+            return self._error_response(400, "Missing request body")
+        
+        try:
+            data = json.loads(body)
+        except:
+            return self._error_response(400, "Invalid JSON")
+        
+        action = data.get('action')
+        speed = data.get('speed', 50)
+        
+        if action == 'forward':
+            self.vehicle.move_forward(speed)
+        elif action == 'backward':
+            self.vehicle.move_backward(speed)
+        elif action == 'left':
+            self.vehicle.turn_left(speed)
+        elif action == 'right':
+            self.vehicle.turn_right(speed)
+        elif action == 'stop':
+            self.vehicle.stop_tracks()
+        elif action == 'set':
+            left = data.get('left_speed', 0)
+            right = data.get('right_speed', 0)
+            self.vehicle.set_track_speeds(left, right)
+        else:
+            return self._error_response(400, "Invalid action")
+        
+        status = self.vehicle.get_track_status()
+        return self._json_response({"success": True, "status": status})
+    
+    def _handle_base(self, method, request):
+        """处理底盘旋转控制请求"""
+        if method != 'POST':
+            return self._error_response(405, "Method Not Allowed")
+        
+        body = self._get_request_body(request)
+        if not body:
+            return self._error_response(400, "Missing request body")
+        
+        try:
+            data = json.loads(body)
+        except:
+            return self._error_response(400, "Invalid JSON")
+        
+        action = data.get('action')
+        speed = data.get('speed', 50)
+        
+        if action == 'cw':
+            self.vehicle.rotate_base_cw(speed)
+        elif action == 'ccw':
+            self.vehicle.rotate_base_ccw(speed)
+        elif action == 'stop':
+            self.vehicle.stop_base()
+        elif action == 'set':
+            rotation_speed = data.get('rotation_speed', 0)
+            self.vehicle.set_base_rotation(rotation_speed)
+        else:
+            return self._error_response(400, "Invalid action")
+        
+        status = self.vehicle.get_base_status()
+        return self._json_response({"success": True, "status": status})
+    
+    def _handle_emergency_stop(self):
+        """紧急停止所有运动"""
+        self.vehicle.emergency_stop()
+        return self._json_response({"success": True, "message": "Emergency stop executed"})
     
     def _get_request_body(self, request):
         """从请求中提取body"""
@@ -417,76 +504,38 @@ class WebServer:
         )
         return response + body
     
-    def _html_response(self):
-        """生成HTML控制界面"""
+    def _static_response(self):
+        """返回简单的API说明页面"""
         html = """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>舵机控制面板</title>
+    <title>API Documentation</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; }
         h1 { color: #333; }
-        .servo { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
-        .servo h3 { margin-top: 0; }
-        input[type="range"] { width: 100%; }
-        button { padding: 8px 15px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
-        button:hover { background: #45a049; }
-        .info { font-size: 14px; color: #666; }
+        code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+        pre { background: #f0f0f0; padding: 15px; border-radius: 5px; overflow-x: auto; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎮 舵机控制面板</h1>
-        <button onclick="loadServos()">刷新状态</button>
-        <button onclick="centerAll()">全部居中</button>
-        <button onclick="disableAll()">禁用所有</button>
-        <div id="servos"></div>
+        <h1>🤖 履带机械臂小车 API</h1>
+        <p>欢迎使用履带机械臂小车控制系统！</p>
+        <h2>可用的API接口：</h2>
+        <ul>
+            <li><code>GET /api/status</code> - 获取所有状态</li>
+            <li><code>GET /api/info</code> - 获取舵机信息</li>
+            <li><code>POST /api/tracks</code> - 控制履带</li>
+            <li><code>POST /api/base</code> - 控制底盘旋转</li>
+            <li><code>POST /api/servo/{channel}</code> - 控制舵机</li>
+            <li><code>POST /api/emergency_stop</code> - 紧急停止</li>
+        </ul>
+        <p>请使用独立的前端应用来控制小车。</p>
     </div>
-    <script>
-        async function loadServos() {
-            const res = await fetch('/api/info');
-            const data = await res.json();
-            const container = document.getElementById('servos');
-            container.innerHTML = '';
-            for (const [ch, info] of Object.entries(data.servos)) {
-                const div = document.createElement('div');
-                div.className = 'servo';
-                div.innerHTML = `
-                    <h3>通道 ${ch}</h3>
-                    <div class="info">当前角度: <span id="angle-${ch}">${info.current_angle || 'N/A'}</span>°</div>
-                    <div class="info">限位: ${info.min_angle}° - ${info.max_angle}°</div>
-                    <input type="range" id="slider-${ch}" min="${info.min_angle}" max="${info.max_angle}" value="${info.current_angle || (info.min_angle + info.max_angle)/2}" oninput="updateAngle(${ch}, this.value)">
-                    <button onclick="setAngle(${ch}, document.getElementById('slider-${ch}').value, false)">设置</button>
-                    <button onclick="setAngle(${ch}, document.getElementById('slider-${ch}').value, true)">平滑移动</button>
-                `;
-                container.appendChild(div);
-            }
-        }
-        function updateAngle(ch, val) {
-            document.getElementById('angle-' + ch).textContent = val;
-        }
-        async function setAngle(ch, angle, smooth) {
-            await fetch('/api/servo/' + ch, {
-                method: 'POST',
-                body: JSON.stringify({angle: parseFloat(angle), smooth: smooth})
-            });
-            setTimeout(loadServos, 500);
-        }
-        async function centerAll() {
-            await fetch('/api/center');
-            setTimeout(loadServos, 500);
-        }
-        async function disableAll() {
-            await fetch('/api/disable', {method: 'POST'});
-        }
-        loadServos();
-    </script>
 </body>
 </html>"""
-        # 计算UTF-8编码后的字节长度
         html_bytes = html.encode('utf-8')
         response = (
             "HTTP/1.1 200 OK\r\n"
@@ -495,5 +544,4 @@ class WebServer:
             "Connection: close\r\n"
             "\r\n"
         )
-        # 返回完整响应（头部 + 正文）
         return response + html

@@ -81,11 +81,11 @@ class ServoController:
         检查指定通道的角度是否会与其他舵机产生干涉
         
         根据测试数据推导的机械臂干涉模型：
-        Servo 1 (ch 0) 和 Servo 3 (ch 2) 之间存在连杆干涉。
+        Servo 1 (ch 0) 和 Servo 2 (ch 1) 之间存在连杆干涉。
         
         推导公式：
-        1. 下限干涉：S1 + S3 >= 145
-        2. 上限干涉：S1 + 6*S3 <= 630
+        1. 下限干涉：S1 + S2 >= 145
+        2. 上限干涉：S1 + 6*S2 <= 630
         """
         # 获取其他舵机的角度，优先从other_angles获取，否则从self.current_angles获取
         def get_val(ch):
@@ -93,17 +93,17 @@ class ServoController:
                 return other_angles[ch]
             return self.current_angles.get(ch)
 
-        # 专门处理 Servo 1 (ch 0) 和 Servo 3 (ch 2) 的干涉
-        if channel == 0 or channel == 2:
+        # 专门处理 Servo 1 (ch 0) 和 Servo 2 (ch 1) 的干涉
+        if channel == 0 or channel == 1:
             s1 = angle if channel == 0 else get_val(0)
-            s3 = angle if channel == 2 else get_val(2)
+            s2 = angle if channel == 1 else get_val(1)
             
-            if s1 is not None and s3 is not None:
-                if s1 + s3 < 145:
-                    print(f"干涉警告: Servo 1({s1}) + Servo 3({s3}) < 145 (下限干涉)")
+            if s1 is not None and s2 is not None:
+                if s1 + s2 < 145:
+                    print(f"干涉警告: Servo 1({s1}) + Servo 2({s2}) < 145 (下限干涉)")
                     return False
-                if s1 + 6 * s3 > 630:
-                    print(f"干涉警告: Servo 1({s1}) + 6*Servo 3({s3}) > 630 (上限干涉)")
+                if s1 + 6 * s2 > 630:
+                    print(f"干涉警告: Servo 1({s1}) + 6*Servo 2({s2}) > 630 (上限干涉)")
                     return False
                 
         return True
