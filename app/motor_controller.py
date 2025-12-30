@@ -47,8 +47,8 @@ class TB6612Controller:
         self.left_speed = 0
         self.right_speed = 0
         
-        # 默认待机
-        self.standby()
+        # 初始化时不启用，需要时手动调用enable()
+        self.stby.value = False  # 待机状态
         
         print("TB6612电机控制器初始化完成")
     
@@ -179,6 +179,10 @@ class DRV8837Controller:
             self.sleep.value = False  # 默认休眠
         
         self.current_speed = 0
+        
+        # 初始化时不启用，需要时手动调用enable()
+        if self.sleep:
+            self.sleep.value = False  # 休眠状态
         
         print("DRV8837电机控制器初始化完成")
     

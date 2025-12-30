@@ -64,6 +64,12 @@ class VehicleController:
             sleep_pin=getattr(board, base_cfg.get('sleep_pin')) if base_cfg.get('sleep_pin') else None
         )
         
+        # 自动启用所有电机驱动器
+        print("\n启用电机驱动器...")
+        self.track_ctrl.enable()
+        self.base_ctrl.enable()
+        print("✅ 电机驱动器已启用")
+        
         print("\n车辆控制器初始化完成！")
     
     # ========== 舵机控制方法 ==========
