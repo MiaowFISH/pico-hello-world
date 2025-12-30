@@ -43,3 +43,7 @@ htmlcov/
 uv.lock
 
 lib/
+
+# frontend build files
+frontend/dist/
+frontend/node_modules/
