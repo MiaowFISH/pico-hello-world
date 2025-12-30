@@ -76,6 +76,38 @@ class ServoController:
             print(f"添加舵机失败: {e}")
             return False
     
+    def _check_interference(self, channel, angle, other_angles=None):
+        """
+        检查指定通道的角度是否会与其他舵机产生干涉
+        
+        根据测试数据推导的机械臂干涉模型：
+        Servo 1 (ch 0) 和 Servo 3 (ch 2) 之间存在连杆干涉。
+        
+        推导公式：
+        1. 下限干涉：S1 + S3 >= 145
+        2. 上限干涉：S1 + 6*S3 <= 630
+        """
+        # 获取其他舵机的角度，优先从other_angles获取，否则从self.current_angles获取
+        def get_val(ch):
+            if other_angles and ch in other_angles:
+                return other_angles[ch]
+            return self.current_angles.get(ch)
+
+        # 专门处理 Servo 1 (ch 0) 和 Servo 3 (ch 2) 的干涉
+        if channel == 0 or channel == 2:
+            s1 = angle if channel == 0 else get_val(0)
+            s3 = angle if channel == 2 else get_val(2)
+            
+            if s1 is not None and s3 is not None:
+                if s1 + s3 < 145:
+                    print(f"干涉警告: Servo 1({s1}) + Servo 3({s3}) < 145 (下限干涉)")
+                    return False
+                if s1 + 6 * s3 > 630:
+                    print(f"干涉警告: Servo 1({s1}) + 6*Servo 3({s3}) > 630 (上限干涉)")
+                    return False
+                
+        return True
+
     def set_angle(self, channel, angle, smooth=False, step=5, delay=0.02):
         """
         设置指定舵机的角度
@@ -98,6 +130,11 @@ class ServoController:
         min_angle, max_angle = self.limits[channel]
         if angle < min_angle or angle > max_angle:
             print(f"错误: 角度 {angle}° 超出限位范围 ({min_angle}°-{max_angle}°)")
+            return False
+        
+        # 检查干涉
+        if not self._check_interference(channel, angle):
+            print(f"错误: 角度 {angle}° 在通道 {channel} 会产生干涉")
             return False
         
         try:
@@ -179,6 +216,21 @@ class ServoController:
         Returns:
             dict: 每个通道的执行结果 {channel: bool}
         """
+        # 首先检查所有目标角度是否合法（包括干涉检查）
+        for channel, angle in angles_dict.items():
+            if channel not in self.servos:
+                print(f"错误: 通道 {channel} 未配置舵机")
+                return {ch: False for ch in angles_dict.keys()}
+            
+            min_angle, max_angle = self.limits[channel]
+            if angle < min_angle or angle > max_angle:
+                print(f"错误: 通道 {channel} 角度 {angle}° 超出限位")
+                return {ch: False for ch in angles_dict.keys()}
+            
+            if not self._check_interference(channel, angle, other_angles=angles_dict):
+                print(f"错误: 通道 {channel} 角度 {angle}° 会产生干涉")
+                return {ch: False for ch in angles_dict.keys()}
+
         results = {}
         for channel, angle in angles_dict.items():
             results[channel] = self.set_angle(channel, angle, smooth=smooth)

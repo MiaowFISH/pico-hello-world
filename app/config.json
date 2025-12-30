@@ -1,7 +1,7 @@
 {
     "wifi": {
-        "ssid": "your_wifi_ssid",
-        "password": "your_wifi_password"
+        "ssid": "mi-router-ax3000t-2g-0fdbd",
+        "password": "12345678"
     },
     "server": {
         "port": 80
@@ -17,8 +17,8 @@
         {
             "channel": 0,
             "name": "Servo 1",
-            "min_angle": 0,
-            "max_angle": 180,
+            "min_angle": 70,
+            "max_angle": 150,
             "min_pulse": 500,
             "max_pulse": 2500,
             "initial_angle": 90
@@ -35,11 +35,11 @@
         {
             "channel": 2,
             "name": "Servo 3",
-            "min_angle": 0,
+            "min_angle": 50,
             "max_angle": 90,
             "min_pulse": 500,
             "max_pulse": 2500,
-            "initial_angle": 45
+            "initial_angle": 60
         }
     ]
 }
