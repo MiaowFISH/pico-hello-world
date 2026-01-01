@@ -9,6 +9,9 @@ import { useDeviceStore } from './hooks/useDeviceStore'
 import { ConnectionStatus } from './components/ConnectionStatus'
 import { TrackControls } from './components/TrackControls'
 import { SpeedSelector } from './components/SpeedSelector'
+import { ServoSliders } from './components/ServoSliders'
+import { BaseRotation } from './components/BaseRotation'
+import { StatusPanel } from './components/StatusPanel'
 
 function App() {
   const {
@@ -114,13 +117,26 @@ function App() {
               disabled={!isConnected}
             />
             
+            <ServoSliders
+              sendCommand={sendCommand}
+              disabled={!isConnected}
+            />
+            
+            <BaseRotation
+              sendCommand={sendCommand}
+              disabled={!isConnected}
+            />
+            
+            <StatusPanel />
+            
             <div className="info-section">
-              <h3>阶段 3: 履带控制 (User Story 1) - 已实现 ✅</h3>
-              <p>下一阶段:</p>
+              <h3>✅ 所有主要功能已实现！</h3>
+              <p>已完成:</p>
               <ul>
-                <li>Phase 4: Servo Sliders (User Story 2)</li>
-                <li>Phase 5: Base Rotation (User Story 3)</li>
-                <li>Phase 6: Status Panel (User Story 4)</li>
+                <li>✅ Phase 3: 履带控制 (差动转向)</li>
+                <li>✅ Phase 4: 机械臂控制 (3轴舵机)</li>
+                <li>✅ Phase 5: 底盘旋转控制</li>
+                <li>✅ Phase 6: 系统状态监控</li>
               </ul>
             </div>
           </>
