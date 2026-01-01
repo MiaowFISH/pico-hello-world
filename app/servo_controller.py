@@ -20,20 +20,27 @@ class ServoController:
             i2c: I2C总线对象，如果为None则创建默认I2C总线
             frequency: PWM频率，默认50Hz（舵机标准频率）
         """
-        if i2c is None:
-            i2c = busio.I2C(board.GP1, board.GP0)  # SCL, SDA
-        
-        self.pca = PCA9685(i2c)
-        self.pca.frequency = frequency
-        
-        # 存储舵机对象
-        self.servos = {}
-        # 存储每个舵机的限位配置 {channel: (min_angle, max_angle)}
-        self.limits = {}
-        # 存储每个舵机的当前角度
-        self.current_angles = {}
-        
-        print("PCA9685舵机控制器初始化完成")
+        try:
+            if i2c is None:
+                print("[INFO] Initializing I2C bus for servo controller")
+                i2c = busio.I2C(board.GP1, board.GP0)  # SCL, SDA
+            
+            print("[INFO] Initializing PCA9685 PWM controller")
+            self.pca = PCA9685(i2c)
+            self.pca.frequency = frequency
+            
+            # 存储舵机对象
+            self.servos = {}
+            # 存储每个舵机的限位配置 {channel: (min_angle, max_angle)}
+            self.limits = {}
+            # 存储每个舵机的当前角度
+            self.current_angles = {}
+            
+            print(f"[INFO] PCA9685 servo controller initialized at {frequency}Hz")
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize PCA9685: {e}")
+            raise RuntimeError(f"Servo controller initialization failed: {e}")
     
     def add_servo(self, channel, min_angle=0, max_angle=180, 
                   min_pulse=500, max_pulse=2500):

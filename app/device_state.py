@@ -115,6 +115,7 @@ class DeviceState:
     
     def add_error(self, error_message):
         """Add error to error list (keep last 10)"""
+        print(f"[ERROR] Device error: {error_message}")
         self.errors.append({
             "message": error_message,
             "timestamp": time.monotonic()

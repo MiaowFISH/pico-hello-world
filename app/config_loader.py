@@ -16,17 +16,21 @@ class ConfigLoader:
     def load(self):
         """Load configuration from file with validation"""
         try:
+            print(f"[INFO] Loading configuration from {self.config_path}")
             with open(self.config_path, 'r') as f:
                 self.config = json.load(f)
             
             self._validate()
+            print("[INFO] Configuration validated successfully")
             return self.config
             
         except OSError as e:
-            print(f"ERROR: Failed to load config file: {e}")
+            print(f"[ERROR] Failed to load config file: {e}")
+            print("[WARNING] Falling back to default configuration")
             return self._get_default_config()
         except ValueError as e:
-            print(f"ERROR: Invalid JSON in config file: {e}")
+            print(f"[ERROR] Invalid JSON in config file: {e}")
+            print("[WARNING] Falling back to default configuration")
             return self._get_default_config()
     
     def _validate(self):
@@ -79,7 +83,7 @@ class ConfigLoader:
     
     def _get_default_config(self):
         """Return default configuration as fallback"""
-        print("WARNING: Using default configuration")
+        print("[WARNING] Using default configuration - WiFi and hardware will need reconfiguration")
         return {
             "wifi": {
                 "ssid": "CONFIGURE_ME",

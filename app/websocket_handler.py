@@ -42,6 +42,8 @@ class WebSocketHandler:
             message = json.loads(message_str)
             action = message.get("action")
             
+            print(f"[INFO] WebSocket command: {action}")
+            
             # Update last command timestamp
             self.device_state.update_last_command()
             
@@ -59,12 +61,14 @@ class WebSocketHandler:
             elif action == "base":
                 return self._handle_base(message)
             else:
+                print(f"[WARNING] Unknown action: {action}")
                 return self._error_response(action, "invalid_action", f"Unknown action: {action}")
         
         except json.JSONDecodeError as e:
+            print(f"[ERROR] JSON decode failed: {e}")
             return self._error_response(None, "invalid_json", str(e))
         except Exception as e:
-            print(f"ERROR in handle_message: {e}")
+            print(f"[ERROR] handle_message exception: {e}")
             return self._error_response(None, "internal_error", str(e))
     
     def _handle_ping(self):

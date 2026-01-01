@@ -24,6 +24,7 @@ class HTTPHandler:
     def handle_status(self, request):
         """GET /api/status - Return current device status"""
         try:
+            print("[INFO] GET /api/status")
             status = {
                 "wifi": self.device_state.get_wifi_status(),
                 "servos": self.device_state.get_servo_states(),
@@ -37,12 +38,13 @@ class HTTPHandler:
             return self._json_response(status)
             
         except Exception as e:
-            print(f"ERROR in handle_status: {e}")
+            print(f"[ERROR] handle_status failed: {e}")
             return self._error_response("Internal server error", 500)
     
     def handle_config(self, request):
         """GET /api/config - Return device configuration (without WiFi password)"""
         try:
+            print("[INFO] GET /api/config")
             # Return safe configuration for frontend
             config_response = {
                 "servos": [
@@ -68,7 +70,7 @@ class HTTPHandler:
             return self._json_response(config_response)
             
         except Exception as e:
-            print(f"ERROR in handle_config: {e}")
+            print(f"[ERROR] handle_config failed: {e}")
             return self._error_response("Internal server error", 500)
     
     def handle_health(self, request):
@@ -82,7 +84,7 @@ class HTTPHandler:
             return self._json_response(health)
             
         except Exception as e:
-            print(f"ERROR in handle_health: {e}")
+            print(f"[ERROR] handle_health failed: {e}")
             return self._error_response("Internal server error", 500)
     
     def _json_response(self, data, status=200):

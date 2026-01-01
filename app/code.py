@@ -15,21 +15,22 @@ from websocket_handler import WebSocketHandler
 
 print("=" * 50)
 print("🤖 履带机械臂小车控制系统 v2.0")
+print("   React 19 + CircuitPython 10.x")
 print("=" * 50)
 
 # Load configuration
-print("\n[1/6] Loading configuration...")
+print("\n[1/7] Loading configuration...")
 config_loader = ConfigLoader("config.json")
 config = config_loader.load()
 print("✓ Configuration loaded successfully")
 
 # Initialize device state
-print("\n[2/6] Initializing device state...")
+print("\n[2/7] Initializing device state...")
 device_state = DeviceState(config)
 print("✓ Device state initialized")
 
 # Connect to WiFi
-print("\n[3/6] Connecting to WiFi...")
+print("\n[3/7] Connecting to WiFi...")
 ssid = config["wifi"]["ssid"]
 password = config["wifi"]["password"]
 
@@ -41,11 +42,10 @@ try:
 except Exception as e:
     print(f"✗ WiFi connection failed: {e}")
     print("  Please check WiFi credentials in config.json")
-    # Continue anyway for development/testing
     device_state.add_error(f"WiFi connection failed: {e}")
 
 # Initialize I2C for PCA9685 (servo controller)
-print("\n[4/6] Initializing hardware controllers...")
+print("\n[4/7] Initializing I2C bus...")
 try:
     i2c_config = config["i2c"]
     sda_pin = getattr(board, i2c_config["sda_pin"])
@@ -57,42 +57,90 @@ except Exception as e:
     i2c = None
     device_state.add_error(f"I2C init failed: {e}")
 
-# Initialize controllers (placeholders until implementation phases)
+# Initialize hardware controllers
+print("\n[5/7] Initializing hardware controllers...")
 controllers = {
-    "servo": None,   # Will be initialized in Phase 4 (User Story 2)
-    "track": None,   # Will be initialized in Phase 3 (User Story 1)
-    "base": None     # Will be initialized in Phase 5 (User Story 3)
+    "servo": None,
+    "track": None,
+    "base": None
 }
 
-print("  Note: Hardware controllers will be initialized in later phases")
-print("  ✓ Controller infrastructure ready")
+# Initialize servo controller
+if i2c:
+    try:
+        from adafruit_pca9685 import PCA9685
+        from adafruit_motor import servo
+        
+        pca = PCA9685(i2c)
+        pca.frequency = config["pca9685"]["frequency"]
+        
+        # Create servo instances
+        servos = []
+        for servo_cfg in config["servos"]:
+            servo_obj = servo.Servo(
+                pca.channels[servo_cfg["channel"]],
+                min_pulse=servo_cfg["min_pulse"],
+                max_pulse=servo_cfg["max_pulse"]
+            )
+            # Set initial angle
+            servo_obj.angle = servo_cfg["initial_angle"]
+            servos.append({
+                "obj": servo_obj,
+                "config": servo_cfg
+            })
+        
+        controllers["servo"] = {
+            "servos": servos,
+            "set_angle": lambda channel, angle: _set_servo_angle(servos, channel, angle)
+        }
+        print(f"✓ Servo controller initialized ({len(servos)} servos)")
+    except Exception as e:
+        print(f"✗ Servo controller failed: {e}")
+        device_state.add_error(f"Servo init failed: {e}")
+
+# Initialize track controller
+try:
+    from track_controller import TrackController
+    controllers["track"] = TrackController(config)
+except Exception as e:
+    print(f"✗ Track controller failed: {e}")
+    device_state.add_error(f"Track init failed: {e}")
+
+# Initialize base rotation controller
+try:
+    from base_rotation_controller import BaseRotationController
+    controllers["base"] = BaseRotationController(config)
+except Exception as e:
+    print(f"✗ Base rotation controller failed: {e}")
+    device_state.add_error(f"Base init failed: {e}")
+
+# Helper function for servo control
+def _set_servo_angle(servos, channel, angle):
+    """Set servo angle with bounds checking"""
+    for servo_data in servos:
+        if servo_data["config"]["channel"] == channel:
+            cfg = servo_data["config"]
+            # Clamp angle
+            clamped = max(cfg["min_angle"], min(cfg["max_angle"], angle))
+            servo_data["obj"].angle = clamped
+            return clamped
+    return None
 
 # Initialize handlers
-print("\n[5/6] Initializing request handlers...")
+print("\n[6/7] Initializing request handlers...")
 http_handler = HTTPHandler(config, device_state)
 ws_handler = WebSocketHandler(config, device_state, controllers)
 print("✓ HTTP and WebSocket handlers ready")
 
-# Note: adafruit_httpserver needs to be installed
-print("\n[6/6] Starting HTTP/WebSocket server...")
-print("\n" + "!" * 50)
-print("⚠️  IMPORTANT: This requires adafruit_httpserver library")
-print("!" * 50)
-print("\nTo install:")
-print("  1. Connect Pico via USB")
-print("  2. Run: circup install adafruit_httpserver")
-print("\nFor manual installation, see: LIBRARY_SETUP.md")
-print("\n" + "=" * 50)
+# Start HTTP/WebSocket server
+print("\n[7/7] Starting HTTP/WebSocket server...")
 
 try:
-    # Import adafruit_httpserver (will fail if not installed)
     from adafruit_httpserver import Server, Request, Response, Websocket
     
-    # Create server
     pool = socketpool.SocketPool(wifi.radio)
     server = Server(pool, "/static", debug=True)
     
-    # Store active websocket connection (only one allowed)
     active_websocket = None
     
     # Define HTTP routes
@@ -119,14 +167,12 @@ try:
         """WebSocket endpoint for real-time control"""
         global active_websocket
         
-        # Close existing connection if any
         if active_websocket is not None:
             try:
                 active_websocket.close()
             except:
                 pass
         
-        # Accept new WebSocket connection
         ws = Websocket(request)
         active_websocket = ws
         
@@ -134,21 +180,17 @@ try:
         
         try:
             while True:
-                # Receive message (non-blocking with timeout)
                 data = ws.receive(timeout=0.1, fail_silently=True)
                 
                 if data:
-                    # Process message
                     response = ws_handler.handle_message(data)
-                    # Send response
                     ws.send_message(str(response))
                 
-                # Check command timeout for safety
+                # Safety timeout check
                 last_cmd_ms = device_state.get_last_command_time()
                 timeout_ms = config["safety"]["command_timeout_ms"]
                 
                 if last_cmd_ms > 0 and last_cmd_ms > timeout_ms:
-                    # Safety timeout: stop all motors
                     print(f"⚠️  Command timeout ({last_cmd_ms}ms) - stopping motors")
                     if controllers.get("track"):
                         controllers["track"].stop()
@@ -156,10 +198,13 @@ try:
                         controllers["base"].stop()
                     device_state.update_track_state(0, 0)
                     device_state.update_base_rotation_state("stop", 0)
-                    # Reset timer
                     device_state.update_last_command()
                 
-                time.sleep(0.01)  # Small delay to prevent busy-waiting
+                # Check base idle sleep
+                if controllers.get("base"):
+                    controllers["base"].check_idle_sleep()
+                
+                time.sleep(0.01)
                 
         except Exception as e:
             print(f"WebSocket error: {e}")
@@ -177,8 +222,11 @@ try:
     print(f"\n📱 Control Interface: http://{wifi.radio.ipv4_address}:{config['server']['port']}/")
     print(f"📊 API Status: http://{wifi.radio.ipv4_address}:{config['server']['port']}/api/status")
     print(f"🔌 WebSocket: ws://{wifi.radio.ipv4_address}:{config['server']['port']}/ws")
-    print("\n💡 Tip: Access the control interface from your browser")
-    print("   Frontend project location: frontend/")
+    print("\n💡 All features ready:")
+    print("   ✓ Track control (differential steering)")
+    print("   ✓ Servo control (3-joint mechanical arm)")
+    print("   ✓ Base rotation control")
+    print("   ✓ Real-time status monitoring")
     print("\nPress Ctrl+C to stop")
     print("=" * 50 + "\n")
     
@@ -199,7 +247,6 @@ except ImportError as e:
     
 except KeyboardInterrupt:
     print("\n\n⏹️  Shutdown requested...")
-    # Emergency stop
     if controllers.get("track"):
         controllers["track"].stop()
     if controllers.get("base"):
@@ -211,7 +258,6 @@ except Exception as e:
     print(f"\n✗ Fatal error: {e}")
     import traceback
     traceback.print_exception(e)
-    # Emergency stop
     try:
         if controllers.get("track"):
             controllers["track"].stop()
