@@ -80,7 +80,7 @@ This project uses:
 
 ---
 
-## Phase 4: User Story 2 - 机械臂控制 (Priority: P2)
+## Phase 4: User Story 2 - 机械臂控制 (Priority: P2) ✅
 
 **Goal**: User can control 3-joint mechanical arm (joint 1, joint 2, gripper) through angle sliders, with reset function. This adds object manipulation capability to the vehicle.
 
@@ -88,21 +88,21 @@ This project uses:
 
 ### Implementation for User Story 2
 
-- [ ] T023 [P] [US2] Create app/servo_controller.py - PCA9685 driver for 3 servos with angle clamping to configured limits
-- [ ] T024 [US2] Integrate servo_controller into app/websocket_handler.py - Handle "servo", "servo_batch", "servo_reset" actions
-- [ ] T025 [US2] Add servo angle validation and clamping in app/websocket_handler.py with error responses
-- [ ] T026 [P] [US2] Create frontend/src/components/ServoSliders.tsx - Three angle sliders (joint1, joint2, gripper) with current angle display
-- [ ] T027 [US2] Add servo reset button to ServoSliders component that sends servo_reset command
-- [ ] T028 [US2] Add servo state to useDeviceStore and connect to WebSocket messages
-- [ ] T029 [US2] Integrate ServoSliders into App.tsx
-- [ ] T030 [US2] Update /api/config endpoint in app/http_handler.py to return servo configurations (min/max angles)
-- [ ] T031 [US2] Load servo constraints from config on frontend mount and apply to slider ranges
+- [X] T023 [P] [US2] Create app/servo_controller.py - PCA9685 driver for 3 servos with angle clamping to configured limits
+- [X] T024 [US2] Integrate servo_controller into app/websocket_handler.py - Handle "servo", "servo_batch", "servo_reset" actions
+- [X] T025 [US2] Add servo angle validation and clamping in app/websocket_handler.py with error responses
+- [X] T026 [P] [US2] Create frontend/src/components/ServoSliders.tsx - Three angle sliders (joint1, joint2, gripper) with current angle display
+- [X] T027 [US2] Add servo reset button to ServoSliders component that sends servo_reset command
+- [X] T028 [US2] Add servo state to useDeviceStore and connect to WebSocket messages
+- [X] T029 [US2] Integrate ServoSliders into App.tsx
+- [X] T030 [US2] Update /api/config endpoint in app/http_handler.py to return servo configurations (min/max angles)
+- [X] T031 [US2] Load servo constraints from config on frontend mount and apply to slider ranges
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently - vehicle can move and manipulate objects
 
 ---
 
-## Phase 5: User Story 3 - 底盘旋转控制 (Priority: P3)
+## Phase 5: User Story 3 - 底盘旋转控制 (Priority: P3) ✅
 
 **Goal**: User can rotate the upper platform relative to the track base using CW/CCW buttons. This expands the working range of the mechanical arm without moving the whole vehicle.
 
@@ -110,20 +110,20 @@ This project uses:
 
 ### Implementation for User Story 3
 
-- [ ] T032 [P] [US3] Create app/base_rotation_controller.py - DRV8837 driver with CW/CCW/stop control and sleep mode management
-- [ ] T033 [US3] Integrate base_rotation_controller into app/websocket_handler.py - Handle "base" action with direction and speed
-- [ ] T034 [US3] Implement idle sleep timer in app/base_rotation_controller.py - Sleep after 5 seconds without commands
-- [ ] T035 [US3] Add safety timeout for base rotation in app/main.py - Auto-stop if no command for 2 seconds
-- [ ] T036 [P] [US3] Create frontend/src/components/BaseRotation.tsx - CW/CCW buttons with press-and-hold support
-- [ ] T037 [US3] Add base rotation state to useDeviceStore and connect to WebSocket messages
-- [ ] T038 [US3] Integrate BaseRotation component into App.tsx
-- [ ] T039 [US3] Add base rotation status to /api/status endpoint in app/http_handler.py
+- [X] T032 [P] [US3] Create app/base_rotation_controller.py - DRV8837 driver with CW/CCW/stop control and sleep mode management
+- [X] T033 [US3] Integrate base_rotation_controller into app/websocket_handler.py - Handle "base" action with direction and speed
+- [X] T034 [US3] Implement idle sleep timer in app/base_rotation_controller.py - Sleep after 5 seconds without commands
+- [X] T035 [US3] Add safety timeout for base rotation in app/main.py - Auto-stop if no command for 2 seconds
+- [X] T036 [P] [US3] Create frontend/src/components/BaseRotation.tsx - CW/CCW buttons with press-and-hold support
+- [X] T037 [US3] Add base rotation state to useDeviceStore and connect to WebSocket messages
+- [X] T038 [US3] Integrate BaseRotation component into App.tsx
+- [X] T039 [US3] Add base rotation status to /api/status endpoint in app/http_handler.py
 
 **Checkpoint**: All primary user stories should now be independently functional - complete vehicle control system
 
 ---
 
-## Phase 6: User Story 4 - 系统状态监控 (Priority: P4)
+## Phase 6: User Story 4 - 系统状态监控 (Priority: P4) ✅
 
 **Goal**: User can view real-time system status including WiFi connection, component states, and current configuration on the control interface.
 
@@ -131,18 +131,18 @@ This project uses:
 
 ### Implementation for User Story 4
 
-- [ ] T040 [P] [US4] Implement /api/status endpoint in app/http_handler.py - Return complete DeviceStatus with WiFi, servos, tracks, base_rotation
-- [ ] T041 [P] [US4] Add WiFi status collection in app/main.py (SSID, IP, RSSI, connected status)
-- [ ] T042 [P] [US4] Create frontend/src/components/StatusPanel.tsx - Display WiFi status, servo angles, motor states, errors
-- [ ] T043 [US4] Integrate StatusPanel into App.tsx with periodic status polling (every 2 seconds)
-- [ ] T044 [US4] Add error message handling in useDeviceStore for WebSocket error responses
-- [ ] T045 [US4] Display clamped angle warnings in StatusPanel when servo angles are limited by safety ranges
+- [X] T040 [P] [US4] Implement /api/status endpoint in app/http_handler.py - Return complete DeviceStatus with WiFi, servos, tracks, base_rotation
+- [X] T041 [P] [US4] Add WiFi status collection in app/main.py (SSID, IP, RSSI, connected status)
+- [X] T042 [P] [US4] Create frontend/src/components/StatusPanel.tsx - Display WiFi status, servo angles, motor states, errors
+- [X] T043 [US4] Integrate StatusPanel into App.tsx with periodic status polling (every 2 seconds)
+- [X] T044 [US4] Add error message handling in useDeviceStore for WebSocket error responses
+- [X] T045 [US4] Display clamped angle warnings in StatusPanel when servo angles are limited by safety ranges
 
 **Checkpoint**: Full system with status monitoring - users can troubleshoot and monitor all components
 
 ---
 
-## Phase 7: User Story 5 - 配置管理 (Priority: P5)
+## Phase 7: User Story 5 - 配置管理 (Priority: P5) ✅
 
 **Goal**: Administrator can modify system parameters through config.json (WiFi, servo limits, motor pins) without code changes. System loads configuration on startup.
 
@@ -150,32 +150,32 @@ This project uses:
 
 ### Implementation for User Story 5
 
-- [ ] T046 [P] [US5] Implement JSON schema validation in app/config_loader.py for all config sections
-- [ ] T047 [P] [US5] Add default configuration fallback in app/config_loader.py when config.json is missing or invalid
-- [ ] T048 [US5] Add configuration error logging in app/main.py with detailed error messages
-- [ ] T049 [US5] Update app/http_handler.py /api/config to return speed_presets and safety timeout configuration
-- [ ] T050 [US5] Document config.json schema in app/config.json with inline comments (as JSON doesn't support comments, create config.example.json)
-- [ ] T051 [US5] Verify all hardware controllers (servo, motor, base_rotation) read parameters from loaded config
+- [X] T046 [P] [US5] Implement JSON schema validation in app/config_loader.py for all config sections
+- [X] T047 [P] [US5] Add default configuration fallback in app/config_loader.py when config.json is missing or invalid
+- [X] T048 [US5] Add configuration error logging in app/main.py with detailed error messages
+- [X] T049 [US5] Update app/http_handler.py /api/config to return speed_presets and safety timeout configuration
+- [X] T050 [US5] Document config.json schema in app/config.json with inline comments (as JSON doesn't support comments, create config.example.json)
+- [X] T051 [US5] Verify all hardware controllers (servo, motor, base_rotation) read parameters from loaded config
 
 **Checkpoint**: Configuration-driven system - hardware changes don't require code modifications
 
 ---
 
-## Phase 8: Polish & Cross-Cutting Concerns
+## Phase 8: Polish & Cross-Cutting Concerns ✅
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T052 [P] Add USB serial logging throughout app/ modules with log levels (INFO, WARNING, ERROR) - Implements FR-022: startup status, error info, key operations
-- [ ] T053 [P] Implement proper error handling for I2C communication failures in servo_controller.py
-- [ ] T054 [P] Add CORS headers to http_handler.py for development mode (optional, based on deployment needs)
-- [ ] T055 Frontend build configuration in frontend/vite.config.ts - Optimize bundle, configure proxy for development
-- [ ] T056 Add mobile touch optimizations to frontend controls - touch-action: none, vibration feedback
-- [ ] T057 [P] Create frontend/src/styles/main.css with mobile-first responsive design (min 320px width support)
-- [ ] T058 Performance testing - Verify WebSocket latency <50ms, UI response <100ms
-- [ ] T059 [P] Update README.md with deployment instructions and architecture diagram
-- [ ] T060 Validate quickstart.md by following all setup steps on fresh Pico device
-- [ ] T061 Add error recovery mechanisms - Handle PCA9685 initialization failures, motor driver errors
-- [ ] T062 Memory optimization - Verify system runs with <180KB heap usage after WiFi connection
+- [X] T052 [P] Add USB serial logging throughout app/ modules with log levels (INFO, WARNING, ERROR) - Implements FR-022: startup status, error info, key operations
+- [X] T053 [P] Implement proper error handling for I2C communication failures in servo_controller.py
+- [X] T054 [P] Add CORS headers to http_handler.py for development mode (optional, based on deployment needs)
+- [X] T055 Frontend build configuration in frontend/vite.config.ts - Optimize bundle, configure proxy for development
+- [X] T056 Add mobile touch optimizations to frontend controls - touch-action: none, vibration feedback
+- [X] T057 [P] Create frontend/src/styles/main.css with mobile-first responsive design (min 320px width support)
+- [X] T058 Performance testing - Verify WebSocket latency <50ms, UI response <100ms
+- [X] T059 [P] Update README.md with deployment instructions and architecture diagram
+- [X] T060 Validate quickstart.md by following all setup steps on fresh Pico device
+- [X] T061 Add error recovery mechanisms - Handle PCA9685 initialization failures, motor driver errors
+- [X] T062 Memory optimization - Verify system runs with <180KB heap usage after WiFi connection
 
 ---
 
