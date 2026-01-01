@@ -3,7 +3,7 @@
  * Mobile-first responsive layout for robot control interface
  */
 
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { useDeviceWebSocket } from './hooks/useDeviceWebSocket'
 import { useDeviceStore } from './hooks/useDeviceStore'
 import { ConnectionStatus } from './components/ConnectionStatus'

@@ -33,7 +33,7 @@ This project uses:
 
 - [X] T001 Verify CircuitPython libraries in lib/ directory (adafruit_httpserver, adafruit_pca9685, adafruit_motor, adafruit_register)
 - [X] T002 [P] Create app/config.json with WiFi credentials and hardware configuration
-- [X] T003 [P] Initialize frontend project with package.json dependencies (React 18, Vite 5, react-use-websocket, zustand, TypeScript)
+- [X] T003 [P] Initialize frontend project with package.json dependencies (React 19, Vite 5, react-use-websocket, zustand, TypeScript)
 
 ---
 

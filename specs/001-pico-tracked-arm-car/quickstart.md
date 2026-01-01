@@ -3,7 +3,7 @@
 ## Prerequisites
 
 ### Hardware
-- Raspberry Pi Pico 2W (已刷入 CircuitPython 9.x)
+- Raspberry Pi Pico 2W (已刷入 CircuitPython 10.x)
 - PCA9685 PWM驱动板 + 3个舵机
 - TB6612FNG 电机驱动板 + 2个直流电机（履带）
 - DRV8837 电机驱动板 + 1个蜗轮蜗杆电机（底盘旋转）

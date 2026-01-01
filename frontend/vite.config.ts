@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://192.168.1.200',  // 修改为你的Pico的IP地址
+        target: 'http://192.168.1.200',
         changeOrigin: true
       },
       '/ws': {
@@ -18,9 +18,10 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
+    outDir: '../app/static',
     assetsDir: 'assets',
     minify: 'terser',
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: undefined

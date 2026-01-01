@@ -9,10 +9,10 @@
 
 ## Technical Context
 
-**Language/Version**: CircuitPython 9.x (backend) + TypeScript 5.x (frontend)  
+**Language/Version**: CircuitPython 10.x (backend) + TypeScript 5.x (frontend)  
 **Primary Dependencies**: 
 - Backend: adafruit_httpserver, adafruit_pca9685, adafruit_motor
-- Frontend: React 18, Vite 5, react-use-websocket, zustand  
+- Frontend: React 19, Vite 5, react-use-websocket, zustand  
 **Storage**: JSON config file on Pico flash  
 **Testing**: Manual integration testing (hardware-dependent)  
 **Target Platform**: Raspberry Pi Pico 2W + Modern browsers (Chrome/Firefox/Safari)
