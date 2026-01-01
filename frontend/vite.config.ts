@@ -18,7 +18,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../app/static',
+    outDir: 'dist',
     assetsDir: 'assets',
     minify: 'terser',
     emptyOutDir: true,

@@ -53,12 +53,14 @@ class PicoDeployer:
         self.project_root = Path(project_root)
         self.app_dir = self.project_root / "app"
         self.lib_dir = self.project_root / "lib"
+        self.frontend_dist_dir = self.project_root / "frontend" / "dist"
         self.pico_path = None
         self.deploy_record = {}
         
         print(f"项目根目录: {self.project_root}")
         print(f"应用目录: {self.app_dir}")
         print(f"库目录: {self.lib_dir}")
+        print(f"前端构建目录: {self.frontend_dist_dir}")
     
     def find_pico(self):
         """查找Pico设备"""
@@ -310,6 +312,65 @@ class PicoDeployer:
         
         return failed == 0
     
+    def deploy_frontend(self):
+        """部署前端构建文件"""
+        print("\n" + "="*60)
+        print("部署前端构建")
+        print("="*60)
+        
+        if not self.frontend_dist_dir.exists():
+            print(f"⚠ 前端构建目录不存在: {self.frontend_dist_dir}")
+            print("  跳过前端部署（如需部署前端，请先运行: cd frontend && bun run build）")
+            return True  # 不作为错误，允许跳过前端
+        
+        # 创建Pico上的static目录
+        pico_static_dir = self.pico_path / "static"
+        pico_static_dir.mkdir(exist_ok=True)
+        
+        # 获取所有前端文件
+        frontend_files = []
+        for root, dirs, files in os.walk(self.frontend_dist_dir):
+            # 跳过隐藏目录
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            
+            for file in files:
+                if file.startswith('.'):
+                    continue
+                
+                src_path = Path(root) / file
+                rel_path = src_path.relative_to(self.frontend_dist_dir)
+                frontend_files.append((src_path, rel_path))
+        
+        print(f"找到 {len(frontend_files)} 个前端文件")
+        
+        # 复制文件
+        copied = 0
+        skipped = 0
+        failed = 0
+        
+        for src_path, rel_path in frontend_files:
+            dest_path = pico_static_dir / rel_path
+            full_rel_path = Path("static") / rel_path
+            
+            # 检查是否需要复制
+            if self.should_copy_file(src_path, dest_path, full_rel_path):
+                if self.copy_file(src_path, dest_path, full_rel_path):
+                    print(f"  ✓ static/{rel_path}")
+                    copied += 1
+                else:
+                    failed += 1
+            else:
+                print(f"  ○ static/{rel_path} (跳过，未改变)")
+                skipped += 1
+        
+        print(f"\n前端构建部署完成:")
+        print(f"  复制: {copied} 个")
+        print(f"  跳过: {skipped} 个")
+        if failed > 0:
+            print(f"  失败: {failed} 个")
+        
+        return failed == 0
+    
     def clean_old_files(self, dry_run=False):
         """
         清理Pico上不在项目中的旧文件
@@ -345,6 +406,17 @@ class PicoDeployer:
                     src_path = Path(root) / file
                     rel_path = src_path.relative_to(self.lib_dir)
                     project_files.add(f"lib/{str(rel_path).replace(chr(92), '/')}")
+        
+        # 前端文件
+        if self.frontend_dist_dir.exists():
+            for root, dirs, files in os.walk(self.frontend_dist_dir):
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+                for file in files:
+                    if file.startswith('.'):
+                        continue
+                    src_path = Path(root) / file
+                    rel_path = src_path.relative_to(self.frontend_dist_dir)
+                    project_files.add(f"static/{str(rel_path).replace(chr(92), '/')}")
         
         # 检查Pico上的文件
         to_delete = []
@@ -399,6 +471,7 @@ class PicoDeployer:
         # 统计
         app_files = []
         lib_files = []
+        static_files = []
         total_size = 0
         
         for file_path, info in self.deploy_record.items():
@@ -407,6 +480,8 @@ class PicoDeployer:
             
             if file_path.startswith('lib/'):
                 lib_files.append((file_path, size))
+            elif file_path.startswith('static/'):
+                static_files.append((file_path, size))
             else:
                 app_files.append((file_path, size))
         
@@ -417,6 +492,11 @@ class PicoDeployer:
         print(f"\n依赖库: {len(lib_files)} 个")
         for file_path, size in sorted(lib_files):
             print(f"  {file_path:40s} {size:>8d} 字节")
+        
+        if static_files:
+            print(f"\n前端静态文件: {len(static_files)} 个")
+            for file_path, size in sorted(static_files):
+                print(f"  {file_path:40s} {size:>8d} 字节")
         
         print(f"\n总计: {len(self.deploy_record)} 个文件, {total_size:,} 字节 ({total_size/1024:.1f} KB)")
         
@@ -461,6 +541,11 @@ class PicoDeployer:
         # 部署依赖库
         if not self.deploy_lib():
             print("\n✗ 依赖库部署失败")
+            return False
+        
+        # 部署前端构建
+        if not self.deploy_frontend():
+            print("\n✗ 前端构建部署失败")
             return False
         
         # 清理旧文件
