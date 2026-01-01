@@ -4,6 +4,7 @@ Initializes WiFi, HTTP server, WebSocket handler, and hardware controllers.
 """
 
 import time
+import json
 import wifi
 import socketpool
 import board
@@ -68,32 +69,8 @@ controllers = {
 # Initialize servo controller
 if i2c:
     try:
-        from adafruit_pca9685 import PCA9685
-        from adafruit_motor import servo
-        
-        pca = PCA9685(i2c)
-        pca.frequency = config["pca9685"]["frequency"]
-        
-        # Create servo instances
-        servos = []
-        for servo_cfg in config["servos"]:
-            servo_obj = servo.Servo(
-                pca.channels[servo_cfg["channel"]],
-                min_pulse=servo_cfg["min_pulse"],
-                max_pulse=servo_cfg["max_pulse"]
-            )
-            # Set initial angle
-            servo_obj.angle = servo_cfg["initial_angle"]
-            servos.append({
-                "obj": servo_obj,
-                "config": servo_cfg
-            })
-        
-        controllers["servo"] = {
-            "servos": servos,
-            "set_angle": lambda channel, angle: _set_servo_angle(servos, channel, angle)
-        }
-        print(f"✓ Servo controller initialized ({len(servos)} servos)")
+        from servo_controller import ServoController
+        controllers["servo"] = ServoController(i2c, config)
     except Exception as e:
         print(f"✗ Servo controller failed: {e}")
         device_state.add_error(f"Servo init failed: {e}")
@@ -114,22 +91,16 @@ except Exception as e:
     print(f"✗ Base rotation controller failed: {e}")
     device_state.add_error(f"Base init failed: {e}")
 
-# Helper function for servo control
-def _set_servo_angle(servos, channel, angle):
-    """Set servo angle with bounds checking"""
-    for servo_data in servos:
-        if servo_data["config"]["channel"] == channel:
-            cfg = servo_data["config"]
-            # Clamp angle
-            clamped = max(cfg["min_angle"], min(cfg["max_angle"], angle))
-            servo_data["obj"].angle = clamped
-            return clamped
-    return None
-
 # Initialize handlers
 print("\n[6/7] Initializing request handlers...")
 http_handler = HTTPHandler(config, device_state)
-ws_handler = WebSocketHandler(config, device_state, controllers)
+ws_handler = WebSocketHandler(
+    config, 
+    device_state, 
+    controllers.get("servo"),
+    controllers.get("track"),
+    controllers.get("base")
+)
 print("✓ HTTP and WebSocket handlers ready")
 
 # Start HTTP/WebSocket server
@@ -176,42 +147,9 @@ try:
         ws = Websocket(request)
         active_websocket = ws
         
-        print(f"WebSocket client connected from {request.client_address}")
-        
-        try:
-            while True:
-                data = ws.receive(timeout=0.1, fail_silently=True)
-                
-                if data:
-                    response = ws_handler.handle_message(data)
-                    ws.send_message(str(response))
-                
-                # Safety timeout check
-                last_cmd_ms = device_state.get_last_command_time()
-                timeout_ms = config["safety"]["command_timeout_ms"]
-                
-                if last_cmd_ms > 0 and last_cmd_ms > timeout_ms:
-                    print(f"⚠️  Command timeout ({last_cmd_ms}ms) - stopping motors")
-                    if controllers.get("track"):
-                        controllers["track"].stop()
-                    if controllers.get("base"):
-                        controllers["base"].stop()
-                    device_state.update_track_state(0, 0)
-                    device_state.update_base_rotation_state("stop", 0)
-                    device_state.update_last_command()
-                
-                # Check base idle sleep
-                if controllers.get("base"):
-                    controllers["base"].check_idle_sleep()
-                
-                time.sleep(0.01)
-                
-        except Exception as e:
-            print(f"WebSocket error: {e}")
-        finally:
-            print("WebSocket client disconnected")
-            if active_websocket == ws:
-                active_websocket = None
+        print(f"[INFO] WebSocket client connected from {request.client_address}")
+        # Return immediately - message processing will happen in main loop
+        return ws
     
     # Start server
     server.start(str(wifi.radio.ipv4_address), config["server"]["port"])
@@ -231,12 +169,57 @@ try:
     print("=" * 50 + "\n")
     
     # Main server loop
+    last_safety_check = time.monotonic()
+    
     while True:
         try:
             server.poll()
+            
+            # Process WebSocket messages if connected
+            if active_websocket is not None:
+                try:
+                    data = active_websocket.receive()
+                    if data:
+                        response = ws_handler.handle_message(data)
+                        active_websocket.send_message(json.dumps(response))
+                except OSError:
+                    # No data available
+                    pass
+                except Exception as e:
+                    print(f"[ERROR] WebSocket error: {e}")
+                    try:
+                        active_websocket.close()
+                    except:
+                        pass
+                    active_websocket = None
+            
+            # Safety checks every 100ms
+            current_time = time.monotonic()
+            if current_time - last_safety_check > 0.1:
+                # Safety timeout check
+                last_cmd_ms = device_state.get_last_command_time()
+                timeout_ms = config["safety"]["command_timeout_ms"]
+                
+                if last_cmd_ms > 0 and last_cmd_ms > timeout_ms:
+                    print(f"[WARNING] Command timeout ({last_cmd_ms}ms) - stopping motors")
+                    if controllers.get("track"):
+                        controllers["track"].stop()
+                    if controllers.get("base"):
+                        controllers["base"].stop()
+                    device_state.update_track_state(0, 0)
+                    device_state.update_base_rotation_state("stop", 0)
+                    device_state.update_last_command()
+                
+                # Check base idle sleep
+                if controllers.get("base"):
+                    controllers["base"].check_idle_sleep()
+                
+                last_safety_check = current_time
+            
         except Exception as e:
-            print(f"Server error: {e}")
+            print(f"[ERROR] Server error: {e}")
             device_state.add_error(str(e))
+        
         time.sleep(0.001)
 
 except ImportError as e:

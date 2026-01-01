@@ -3,7 +3,7 @@
  * Three angle sliders for controlling mechanical arm joints
  */
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useDeviceStore } from '../hooks/useDeviceStore'
 
 interface ServoSlidersProps {
@@ -20,12 +20,61 @@ export const ServoSliders: React.FC<ServoSlidersProps> = ({
   const servos = config?.servos || []
   const servoStates = status?.servos || []
   
+  // Local state for slider values (while dragging)
+  const [localAngles, setLocalAngles] = useState<Record<number, number>>({})
+  const [isDragging, setIsDragging] = useState<Record<number, boolean>>({})
+  const [initialized, setInitialized] = useState(false)
+  
+  // Initialize local angles from config (once)
+  useEffect(() => {
+    if (servos.length > 0 && !initialized) {
+      const initial: Record<number, number> = {}
+      servos.forEach(servo => {
+        initial[servo.channel] = servo.initial_angle
+      })
+      setLocalAngles(initial)
+      setInitialized(true)
+    }
+  }, [servos, initialized])
+  
+  // Update local angles from status when not dragging
+  useEffect(() => {
+    if (servoStates.length > 0 && initialized) {
+      const updated: Record<number, number> = {}
+      let hasChanges = false
+      
+      servoStates.forEach(state => {
+        // Only update if not currently dragging this slider
+        if (!isDragging[state.channel]) {
+          const newAngle = state.current_angle
+          if (localAngles[state.channel] !== newAngle) {
+            updated[state.channel] = newAngle
+            hasChanges = true
+          }
+        }
+      })
+      
+      if (hasChanges) {
+        setLocalAngles(prev => ({ ...prev, ...updated }))
+      }
+    }
+  }, [servoStates, isDragging, initialized, localAngles])
+  
   const handleAngleChange = (channel: number, angle: number) => {
+    setLocalAngles(prev => ({ ...prev, [channel]: angle }))
     sendCommand({
       action: 'servo',
       channel,
       angle
     })
+  }
+  
+  const handleMouseDown = (channel: number) => {
+    setIsDragging(prev => ({ ...prev, [channel]: true }))
+  }
+  
+  const handleMouseUp = (channel: number) => {
+    setIsDragging(prev => ({ ...prev, [channel]: false }))
   }
   
   const handleReset = () => {
@@ -48,15 +97,14 @@ export const ServoSliders: React.FC<ServoSlidersProps> = ({
       <div className="controls-label">机械臂控制</div>
       
       <div className="sliders-container">
-        {servos.map((servo, index) => {
-          const currentState = servoStates.find(s => s.channel === servo.channel)
-          const currentAngle = currentState?.current_angle ?? servo.initial_angle
+        {servos.map((servo) => {
+          const displayAngle = localAngles[servo.channel] ?? servo.initial_angle
           
           return (
             <div key={servo.channel} className="slider-item">
               <div className="slider-header">
                 <span className="slider-name">{servo.name}</span>
-                <span className="slider-value">{currentAngle}°</span>
+                <span className="slider-value">{displayAngle}°</span>
               </div>
               
               <div className="slider-wrapper">
@@ -65,8 +113,12 @@ export const ServoSliders: React.FC<ServoSlidersProps> = ({
                   type="range"
                   min={servo.min_angle}
                   max={servo.max_angle}
-                  value={currentAngle}
+                  value={displayAngle}
                   onChange={(e) => handleAngleChange(servo.channel, parseInt(e.target.value))}
+                  onMouseDown={() => handleMouseDown(servo.channel)}
+                  onMouseUp={() => handleMouseUp(servo.channel)}
+                  onTouchStart={() => handleMouseDown(servo.channel)}
+                  onTouchEnd={() => handleMouseUp(servo.channel)}
                   disabled={disabled}
                   className="servo-slider"
                 />

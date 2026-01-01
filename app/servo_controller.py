@@ -1,300 +1,157 @@
 """
-舵机控制器模块
-用于控制连接到PCA9685的舵机，支持角度限位配置
+Servo controller for PCA9685-based mechanical arm.
+Manages 3-joint servo angles with bounds checking and interference detection.
 """
-import board
-import busio
-from adafruit_pca9685 import PCA9685
-from adafruit_motor import servo
-import time
 
 
 class ServoController:
-    """舵机控制器类"""
+    """Control servos via PCA9685 PWM driver"""
     
-    def __init__(self, i2c=None, frequency=50):
+    def __init__(self, i2c, config):
         """
-        初始化舵机控制器
+        Initialize servo controller
         
         Args:
-            i2c: I2C总线对象，如果为None则创建默认I2C总线
-            frequency: PWM频率，默认50Hz（舵机标准频率）
+            i2c: I2C bus instance
+            config: Configuration dict with servos and pca9685 settings
         """
-        try:
-            if i2c is None:
-                print("[INFO] Initializing I2C bus for servo controller")
-                i2c = busio.I2C(board.GP1, board.GP0)  # SCL, SDA
-            
-            print("[INFO] Initializing PCA9685 PWM controller")
-            self.pca = PCA9685(i2c)
-            self.pca.frequency = frequency
-            
-            # 存储舵机对象
-            self.servos = {}
-            # 存储每个舵机的限位配置 {channel: (min_angle, max_angle)}
-            self.limits = {}
-            # 存储每个舵机的当前角度
-            self.current_angles = {}
-            
-            print(f"[INFO] PCA9685 servo controller initialized at {frequency}Hz")
-            
-        except Exception as e:
-            print(f"[ERROR] Failed to initialize PCA9685: {e}")
-            raise RuntimeError(f"Servo controller initialization failed: {e}")
-    
-    def add_servo(self, channel, min_angle=0, max_angle=180, 
-                  min_pulse=500, max_pulse=2500):
-        """
-        添加一个舵机到指定通道
+        from adafruit_pca9685 import PCA9685
+        from adafruit_motor import servo
         
-        Args:
-            channel: PCA9685通道号 (0-15)
-            min_angle: 最小角度限位
-            max_angle: 最大角度限位
-            min_pulse: 最小脉冲宽度（微秒）
-            max_pulse: 最大脉冲宽度（微秒）
+        self.config = config
         
-        Returns:
-            bool: 成功返回True，失败返回False
-        """
-        if channel < 0 or channel > 15:
-            print(f"错误: 通道 {channel} 超出范围 (0-15)")
-            return False
+        # Initialize PCA9685
+        self.pca = PCA9685(i2c)
+        self.pca.frequency = config["pca9685"]["frequency"]
         
-        if min_angle >= max_angle:
-            print(f"错误: 最小角度必须小于最大角度")
-            return False
+        # Create servo instances and track current angles
+        self.servos = []
+        self.current_angles = {}
         
-        try:
-            # 创建舵机对象
+        for servo_cfg in config["servos"]:
             servo_obj = servo.Servo(
-                self.pca.channels[channel],
-                min_pulse=min_pulse,
-                max_pulse=max_pulse
+                self.pca.channels[servo_cfg["channel"]],
+                min_pulse=servo_cfg["min_pulse"],
+                max_pulse=servo_cfg["max_pulse"]
             )
+            # Set initial angle
+            initial = servo_cfg["initial_angle"]
+            servo_obj.angle = initial
+            self.servos.append({
+                "obj": servo_obj,
+                "config": servo_cfg
+            })
+            self.current_angles[servo_cfg["channel"]] = initial
+        
+        print(f"✓ Servo controller initialized ({len(self.servos)} servos)")
+        print(f"  Interference checking enabled for channels 0-1")
+    
+    def _check_interference(self, channel, angle):
+        """
+        Check if servo angle would cause mechanical interference
+        
+        Based on mechanical arm interference model:
+        - Servo 1 (ch 0) and Servo 2 (ch 1) have linkage interference
+        - Lower limit: S1 + S2 >= 145
+        - Upper limit: S1 + 6*S2 <= 630
+        
+        Args:
+            channel: Channel being set
+            angle: Proposed angle
             
-            self.servos[channel] = servo_obj
-            self.limits[channel] = (min_angle, max_angle)
-            self.current_angles[channel] = None
-            
-            print(f"舵机已添加到通道 {channel}, 限位: {min_angle}°-{max_angle}°")
+        Returns:
+            bool: True if safe, False if interference detected
+        """
+        # Only check interference for channels 0 and 1
+        if channel not in [0, 1]:
             return True
-        except Exception as e:
-            print(f"添加舵机失败: {e}")
-            return False
-    
-    def _check_interference(self, channel, angle, other_angles=None):
-        """
-        检查指定通道的角度是否会与其他舵机产生干涉
         
-        根据测试数据推导的机械臂干涉模型：
-        Servo 1 (ch 0) 和 Servo 2 (ch 1) 之间存在连杆干涉。
+        # Get angles for both servos
+        s1 = angle if channel == 0 else self.current_angles.get(0)
+        s2 = angle if channel == 1 else self.current_angles.get(1)
         
-        推导公式：
-        1. 下限干涉：S1 + S2 >= 145
-        2. 上限干涉：S1 + 6*S2 <= 630
-        """
-        # 获取其他舵机的角度，优先从other_angles获取，否则从self.current_angles获取
-        def get_val(ch):
-            if other_angles and ch in other_angles:
-                return other_angles[ch]
-            return self.current_angles.get(ch)
-
-        # 专门处理 Servo 1 (ch 0) 和 Servo 2 (ch 1) 的干涉
-        if channel == 0 or channel == 1:
-            s1 = angle if channel == 0 else get_val(0)
-            s2 = angle if channel == 1 else get_val(1)
-            
-            if s1 is not None and s2 is not None:
-                if s1 + s2 < 145:
-                    print(f"干涉警告: Servo 1({s1}) + Servo 2({s2}) < 145 (下限干涉)")
-                    return False
-                if s1 + 6 * s2 > 630:
-                    print(f"干涉警告: Servo 1({s1}) + 6*Servo 2({s2}) > 630 (上限干涉)")
-                    return False
-                
-        return True
-
-    def set_angle(self, channel, angle, smooth=False, step=5, delay=0.02):
-        """
-        设置指定舵机的角度
-        
-        Args:
-            channel: 通道号
-            angle: 目标角度
-            smooth: 是否平滑移动
-            step: 平滑移动的步进角度
-            delay: 每步之间的延迟（秒）
-        
-        Returns:
-            bool: 成功返回True，失败返回False
-        """
-        if channel not in self.servos:
-            print(f"错误: 通道 {channel} 未配置舵机")
-            return False
-        
-        # 检查角度限位
-        min_angle, max_angle = self.limits[channel]
-        if angle < min_angle or angle > max_angle:
-            print(f"错误: 角度 {angle}° 超出限位范围 ({min_angle}°-{max_angle}°)")
-            return False
-        
-        # 检查干涉
-        if not self._check_interference(channel, angle):
-            print(f"错误: 角度 {angle}° 在通道 {channel} 会产生干涉")
-            return False
-        
-        try:
-            if smooth and self.current_angles[channel] is not None:
-                # 平滑移动
-                current = self.current_angles[channel]
-                direction = 1 if angle > current else -1
-                
-                while abs(current - angle) > step:
-                    current += step * direction
-                    self.servos[channel].angle = current
-                    time.sleep(delay)
-            
-            # 设置最终角度
-            self.servos[channel].angle = angle
-            self.current_angles[channel] = angle
-            print(f"通道 {channel} 设置为 {angle}°")
+        # Need both angles to check
+        if s1 is None or s2 is None:
             return True
-        except Exception as e:
-            print(f"设置角度失败: {e}")
-            return False
-    
-    def get_angle(self, channel):
-        """
-        获取指定舵机的当前角度
         
-        Args:
-            channel: 通道号
-        
-        Returns:
-            float or None: 当前角度，如果未设置返回None
-        """
-        return self.current_angles.get(channel)
-    
-    def get_limits(self, channel):
-        """
-        获取指定舵机的角度限位
-        
-        Args:
-            channel: 通道号
-        
-        Returns:
-            tuple or None: (min_angle, max_angle)，如果未配置返回None
-        """
-        return self.limits.get(channel)
-    
-    def set_limits(self, channel, min_angle, max_angle):
-        """
-        设置指定舵机的角度限位
-        
-        Args:
-            channel: 通道号
-            min_angle: 最小角度
-            max_angle: 最大角度
-        
-        Returns:
-            bool: 成功返回True，失败返回False
-        """
-        if channel not in self.servos:
-            print(f"错误: 通道 {channel} 未配置舵机")
+        # Check lower limit interference
+        if s1 + s2 < 145:
+            print(f"[WARNING] Interference: Servo1({s1:.0f}) + Servo2({s2:.0f}) = {s1+s2:.0f} < 145")
             return False
         
-        if min_angle >= max_angle:
-            print(f"错误: 最小角度必须小于最大角度")
+        # Check upper limit interference
+        if s1 + 6 * s2 > 630:
+            print(f"[WARNING] Interference: Servo1({s1:.0f}) + 6*Servo2({s2:.0f}) = {s1+6*s2:.0f} > 630")
             return False
         
-        self.limits[channel] = (min_angle, max_angle)
-        print(f"通道 {channel} 限位已更新为: {min_angle}°-{max_angle}°")
         return True
     
-    def set_multiple(self, angles_dict, smooth=False):
+    def set_angle(self, channel, angle):
         """
-        同时设置多个舵机的角度
+        Set servo angle with bounds checking and interference detection
         
         Args:
-            angles_dict: 字典，格式为 {channel: angle}
-            smooth: 是否平滑移动
-        
-        Returns:
-            dict: 每个通道的执行结果 {channel: bool}
-        """
-        # 首先检查所有目标角度是否合法（包括干涉检查）
-        for channel, angle in angles_dict.items():
-            if channel not in self.servos:
-                print(f"错误: 通道 {channel} 未配置舵机")
-                return {ch: False for ch in angles_dict.keys()}
+            channel: Servo channel number (0-15)
+            angle: Target angle in degrees
             
-            min_angle, max_angle = self.limits[channel]
-            if angle < min_angle or angle > max_angle:
-                print(f"错误: 通道 {channel} 角度 {angle}° 超出限位")
-                return {ch: False for ch in angles_dict.keys()}
+        Returns:
+            float: Clamped angle value, or None if channel not found or interference
+        """
+        for servo_data in self.servos:
+            if servo_data["config"]["channel"] == channel:
+                cfg = servo_data["config"]
+                
+                # Clamp angle to configured range
+                clamped = max(cfg["min_angle"], min(cfg["max_angle"], angle))
+                
+                # Check for mechanical interference
+                if not self._check_interference(channel, clamped):
+                    print(f"[ERROR] Channel {channel} angle {clamped:.0f}° blocked by interference")
+                    return None
+                
+                # Set angle and update tracking
+                servo_data["obj"].angle = clamped
+                self.current_angles[channel] = clamped
+                
+                # Log angle changes
+                if abs(angle - clamped) > 0.5:
+                    print(f"[INFO] Channel {channel}: {angle:.0f}° clamped to {clamped:.0f}°")
+                
+                return clamped
+        
+        print(f"[ERROR] Channel {channel} not found")
+        return None
+    
+    def get_servo_config(self, channel):
+        """Get servo configuration by channel"""
+        for servo_data in self.servos:
+            if servo_data["config"]["channel"] == channel:
+                return servo_data["config"]
+        return None
+    
+    def reset_all(self):
+        """Reset all servos to initial angles"""
+        print("[INFO] Resetting all servos to initial positions")
+        for servo_data in self.servos:
+            cfg = servo_data["config"]
+            channel = cfg["channel"]
+            initial_angle = cfg.get("initial_angle", 90)
             
-            if not self._check_interference(channel, angle, other_angles=angles_dict):
-                print(f"错误: 通道 {channel} 角度 {angle}° 会产生干涉")
-                return {ch: False for ch in angles_dict.keys()}
-
-        results = {}
-        for channel, angle in angles_dict.items():
-            results[channel] = self.set_angle(channel, angle, smooth=smooth)
-        return results
+            # Use set_angle to ensure interference checking
+            result = self.set_angle(channel, initial_angle)
+            if result is None:
+                print(f"[WARNING] Failed to reset channel {channel}")
     
-    def center_all(self):
-        """
-        将所有舵机移动到中心位置（限位范围的中点）
-        
-        Returns:
-            dict: 每个通道的执行结果
-        """
-        results = {}
-        for channel in self.servos.keys():
-            min_angle, max_angle = self.limits[channel]
-            center = (min_angle + max_angle) / 2
-            results[channel] = self.set_angle(channel, center)
-        return results
-    
-    def disable(self, channel=None):
-        """
-        禁用舵机（停止PWM信号）
-        
-        Args:
-            channel: 通道号，如果为None则禁用所有舵机
-        """
-        if channel is None:
-            # 禁用所有舵机
-            for ch in self.servos.keys():
-                self.servos[ch].angle = None
-            print("所有舵机已禁用")
-        else:
-            if channel in self.servos:
-                self.servos[channel].angle = None
-                print(f"通道 {channel} 已禁用")
-    
-    def get_servo_info(self):
-        """
-        获取所有舵机的信息
-        
-        Returns:
-            dict: 舵机信息字典
-        """
-        info = {}
-        for channel in self.servos.keys():
-            info[channel] = {
-                'current_angle': self.current_angles[channel],
-                'limits': self.limits[channel],
-                'min_angle': self.limits[channel][0],
-                'max_angle': self.limits[channel][1]
-            }
-        return info
-    
-    def deinit(self):
-        """释放资源"""
-        try:
-            self.pca.deinit()
-            print("舵机控制器已释放资源")
-        except Exception as e:
-            print(f"释放资源时出错: {e}")
+    def get_status(self):
+        """Get current status of all servos"""
+        status = []
+        for servo_data in self.servos:
+            cfg = servo_data["config"]
+            channel = cfg["channel"]
+            status.append({
+                "channel": channel,
+                "current_angle": self.current_angles.get(channel, 0),
+                "min_angle": cfg["min_angle"],
+                "max_angle": cfg["max_angle"]
+            })
+        return status

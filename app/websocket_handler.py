@@ -4,24 +4,31 @@ Processes real-time control commands for tracks, servos, and base rotation.
 """
 
 import json
+from base_rotation_controller import BaseRotationController
+from servo_controller import ServoController
+from track_controller import TrackController
 import time
 
 
 class WebSocketHandler:
     """Handle WebSocket messages and dispatch commands to controllers"""
     
-    def __init__(self, config, device_state, controllers):
+    def __init__(self, config, device_state, servo_controller: ServoController, track_controller: TrackController, base_controller: BaseRotationController):
         """
         Initialize WebSocket handler
         
         Args:
             config: Loaded configuration dict
             device_state: Shared device state object
-            controllers: Dict with 'servo', 'track', 'base' controller instances
+            servo_controller: Servo controller instance
+            track_controller: Track controller instance
+            base_controller: Base rotation controller instance
         """
         self.config = config
         self.device_state = device_state
-        self.controllers = controllers
+        self.servo_controller = servo_controller
+        self.track_controller = track_controller
+        self.base_controller = base_controller
         self.speed_presets = config.get("speed_presets", {
             "slow": 30,
             "medium": 60,
@@ -75,7 +82,7 @@ class WebSocketHandler:
         """Handle ping heartbeat"""
         return {
             "status": "pong",
-            "timestamp": time.monotonic_ns() // 1_000_000
+            "timestamp": int(time.monotonic() * 1000)
         }
     
     def _handle_track(self, message):
@@ -109,8 +116,8 @@ class WebSocketHandler:
                 return self._error_response("track", "speed_out_of_range", "Speed must be between -100 and 100")
             
             # Send to track controller
-            if self.controllers.get("track"):
-                self.controllers["track"].set_speeds(left, right)
+            if self.track_controller:
+                self.track_controller.set_speeds(left, right)
                 self.device_state.update_track_state(left, right)
             
             return self._success_response("track")
@@ -139,9 +146,10 @@ class WebSocketHandler:
             angle = max(min_angle, min(max_angle, angle))
             
             # Send to servo controller
-            if self.controllers.get("servo"):
-                self.controllers["servo"].set_angle(channel, angle)
-                self.device_state.update_servo_state(channel, angle)
+            if self.servo_controller:
+                clamped = self.servo_controller.set_angle(channel, angle)
+                if clamped is not None:
+                    self.device_state.update_servo_state(channel, clamped)
             
             response = self._success_response("servo")
             if original_angle != angle:
@@ -174,9 +182,10 @@ class WebSocketHandler:
                 # Clamp angle
                 clamped_angle = max(servo_config["min_angle"], min(servo_config["max_angle"], angle))
                 
-                if self.controllers.get("servo"):
-                    self.controllers["servo"].set_angle(channel, clamped_angle)
-                    self.device_state.update_servo_state(channel, clamped_angle)
+                if self.servo_controller:
+                    clamped = self.servo_controller.set_angle(channel, clamped_angle)
+                    if clamped is not None:
+                        self.device_state.update_servo_state(channel, clamped)
             
             return self._success_response("servo_batch")
             
@@ -192,9 +201,10 @@ class WebSocketHandler:
                 channel = servo_config["channel"]
                 initial_angle = servo_config.get("initial_angle", 90)
                 
-                if self.controllers.get("servo"):
-                    self.controllers["servo"].set_angle(channel, initial_angle)
-                    self.device_state.update_servo_state(channel, initial_angle)
+                if self.servo_controller:
+                    clamped = self.servo_controller.set_angle(channel, initial_angle)
+                    if clamped is not None:
+                        self.device_state.update_servo_state(channel, clamped)
             
             return self._success_response("servo_reset")
             
@@ -215,8 +225,8 @@ class WebSocketHandler:
                 return self._error_response("base", "speed_out_of_range", "Speed must be between 0 and 100")
             
             # Send to base rotation controller
-            if self.controllers.get("base"):
-                self.controllers["base"].set_direction(direction, speed)
+            if self.base_controller:
+                self.base_controller.set_direction(direction, speed)
                 self.device_state.update_base_rotation_state(direction, speed)
             
             return self._success_response("base")
@@ -237,7 +247,7 @@ class WebSocketHandler:
         return {
             "status": "ok",
             "action": action,
-            "timestamp": time.monotonic_ns() // 1_000_000
+            "timestamp": int(time.monotonic() * 1000)
         }
     
     def _error_response(self, action, error_code, message):
