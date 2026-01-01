@@ -236,6 +236,13 @@ class DRV8837Controller:
         """停止"""
         self.set_speed(0)
     
+    def brake(self):
+        """刹车停止（两个引脚都为高，主动刹车）"""
+        self.enable()
+        self.in1.duty_cycle = 65535
+        self.in2.duty_cycle = 65535
+        self.current_speed = 0
+    
     def coast(self):
         """滑行停止（两个引脚都为低）"""
         self.in1.duty_cycle = 0

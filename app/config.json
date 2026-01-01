@@ -57,5 +57,14 @@
             "in2_pin": "GP15",
             "sleep_pin": "GP13"
         }
+    },
+    "speed_presets": {
+        "slow": 30,
+        "medium": 60,
+        "fast": 100
+    },
+    "safety": {
+        "command_timeout_ms": 2000,
+        "idle_sleep_ms": 5000
     }
 }

@@ -1,0 +1,123 @@
+{
+    "_comment": "Configuration file for Pico2W tracked arm car control system",
+    "_schema_version": "1.0",
+    
+    "wifi": {
+        "_comment": "WiFi connection settings",
+        "ssid": "YOUR_WIFI_SSID",
+        "password": "YOUR_WIFI_PASSWORD"
+    },
+    
+    "server": {
+        "_comment": "HTTP/WebSocket server settings",
+        "port": 80
+    },
+    
+    "i2c": {
+        "_comment": "I2C bus configuration for PCA9685 servo controller",
+        "sda_pin": "GP0",
+        "scl_pin": "GP1"
+    },
+    
+    "pca9685": {
+        "_comment": "PCA9685 PWM servo controller settings",
+        "frequency": 50
+    },
+    
+    "servos": [
+        {
+            "_comment": "Joint 1 - Base joint of mechanical arm",
+            "channel": 0,
+            "name": "机械臂关节1",
+            "min_angle": 70,
+            "max_angle": 150,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90
+        },
+        {
+            "_comment": "Joint 2 - Middle joint of mechanical arm",
+            "channel": 1,
+            "name": "机械臂关节2",
+            "min_angle": 50,
+            "max_angle": 90,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 60
+        },
+        {
+            "_comment": "Joint 3 - Gripper for object manipulation",
+            "channel": 2,
+            "name": "机械臂夹爪",
+            "min_angle": 45,
+            "max_angle": 135,
+            "min_pulse": 500,
+            "max_pulse": 2500,
+            "initial_angle": 90
+        }
+    ],
+    
+    "motors": {
+        "_comment": "Motor driver pin configurations",
+        
+        "tracks": {
+            "_comment": "TB6612FNG dual motor driver for differential steering tracks",
+            "pwma_pin": "GP6",
+            "ain1_pin": "GP7",
+            "ain2_pin": "GP8",
+            "pwmb_pin": "GP9",
+            "bin1_pin": "GP10",
+            "bin2_pin": "GP11",
+            "stby_pin": "GP12"
+        },
+        
+        "base_rotation": {
+            "_comment": "DRV8837 single motor driver for platform rotation",
+            "in1_pin": "GP14",
+            "in2_pin": "GP15",
+            "sleep_pin": "GP13"
+        }
+    },
+    
+    "speed_presets": {
+        "_comment": "Speed presets for track control (0-100 percentage)",
+        "slow": 30,
+        "medium": 60,
+        "fast": 100
+    },
+    
+    "safety": {
+        "_comment": "Safety timeout settings to prevent runaway motors",
+        "command_timeout_ms": 2000,
+        "_timeout_description": "Motors auto-stop if no command received for this duration",
+        "idle_sleep_ms": 5000,
+        "_sleep_description": "Base rotation motor enters sleep mode after this idle duration"
+    },
+    
+    "_notes": [
+        "All angles are in degrees (0-180)",
+        "Pulse widths are in microseconds (typically 500-2500 for standard servos)",
+        "Initial angles must be within min_angle and max_angle range",
+        "Pin names use CircuitPython board module format (e.g., 'GP0', 'GP1')",
+        "Speed values are percentages (0-100)",
+        "Timeout values are in milliseconds"
+    ],
+    
+    "_hardware_requirements": {
+        "microcontroller": "Raspberry Pi Pico 2W (RP2350 with WiFi)",
+        "servo_controller": "PCA9685 16-channel PWM driver (I2C)",
+        "track_motor_driver": "TB6612FNG dual H-bridge",
+        "base_motor_driver": "DRV8837 single H-bridge",
+        "servos": "3x standard 180° servos",
+        "power": "Separate power supplies recommended for motors and Pico"
+    },
+    
+    "_configuration_guide": {
+        "step1": "Copy this file to config.json",
+        "step2": "Update wifi.ssid and wifi.password with your network credentials",
+        "step3": "Adjust servo angle limits based on your mechanical arm constraints",
+        "step4": "Verify pin assignments match your hardware wiring",
+        "step5": "Test servos individually to ensure min/max angles prevent collisions",
+        "step6": "Upload to Pico and rename to config.json in root directory"
+    }
+}

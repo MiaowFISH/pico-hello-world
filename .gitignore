@@ -45,5 +45,11 @@ uv.lock
 lib/
 
 # frontend build files
+app/static/
 frontend/dist/
 frontend/node_modules/
+
+# Spec-Kit files
+.github/agents/
+.github/prompts/
+.specify/
